@@ -1,33 +1,27 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage } from '../../types/typicalbot';
-import PermissionLevel from '../../structures/PermissionLevel';
 import { MessageEmbed } from 'discord.js';
+import Command from '../../lib/structures/Command';
+import PermissionLevel from '../../lib/structures/PermissionLevel';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels, Links, ModerationLogTypes } from '../../lib/utils/constants';
 
 const regex = /(?:<@!?)?(\d{17,20})>?(?:\s+(.+))?/i;
 
 export default class extends Command {
-    permission = Constants.PermissionsLevels.SERVER_MODERATOR;
-    mode = Constants.Modes.STRICT;
+    permission = PermissionsLevels.SERVER_MODERATOR;
+    mode = Modes.STRICT;
 
-    async execute(
-        message: TypicalGuildMessage,
+    async execute(message: TypicalGuildMessage,
         parameters: string,
-        permissionLevel: PermissionLevel
-    ) {
+        permissionLevel: PermissionLevel) {
         if (!message.guild.settings.logs.moderation)
-            return message.error(
-                message.translate('moderation/reason:DISABLED')
-            );
+            return message.error(message.translate('moderation/reason:DISABLED'));
 
         const args = regex.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
         const [userID, reason] = args;
 
@@ -47,33 +41,36 @@ export default class extends Command {
 
         const newCase = await message.guild.buildModerationLog();
         newCase
-            .setAction(Constants.ModerationLogTypes.WARN)
+            .setAction(ModerationLogTypes.WARN)
             .setModerator(message.author)
             .setUser(member.user);
         if (reason) newCase.setReason(reason);
-        newCase.send();
+        await newCase.send();
 
         const embed = new MessageEmbed()
-            .setColor(Constants.ModerationLogTypes.WARN.hex)
-            .setFooter('TypicalBot', Constants.Links.ICON)
+            .setColor(ModerationLogTypes.WARN.hex)
+            .setFooter('TypicalBot', Links.ICON)
             .setTitle(message.translate('common:ALERT_SYSTEM'))
-            .setDescription(
-                message.translate('moderation/warn:WARNED', {
-                    name: message.guild.name
-                })
-            )
-            .addField(
-                message.translate('common:MODERATOR_FIELD'),
-                message.author.tag
-            );
+            .setDescription(message.translate('moderation/warn:WARNED', {
+                name: message.guild.name
+            }))
+            .addFields([
+                {
+                    name: message.translate('common:MODERATOR_FIELD'),
+                    value: message.author.tag
+                }
+            ]);
         if (reason)
-            embed.addField(message.translate('common:REASON_FIELD'), reason);
+            embed.addFields([
+                {
+                    name: message.translate('common:REASON_FIELD'),
+                    value: reason
+                }
+            ]);
         member.send(embed).catch(() => null);
 
-        return message.success(
-            message.translate('moderation/warn:SUCCESS', {
-                user: member.user.tag
-            })
-        );
+        return message.success(message.translate('moderation/warn:SUCCESS', {
+            user: member.user.tag
+        }));
     }
 }

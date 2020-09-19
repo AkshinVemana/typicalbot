@@ -19,7 +19,8 @@ pids
 node_modules
 
 # Custom
-config.json
+etc/config.json
 .env
-production/
+dist/
 rethinkdb_data/
+data/

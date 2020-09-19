@@ -1,5 +1,5 @@
-import Command from '../../structures/Command';
-import { TypicalGuildMessage } from '../../types/typicalbot';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
 
 export default class extends Command {
     execute(message: TypicalGuildMessage, parameters?: string) {
@@ -8,8 +8,6 @@ export default class extends Command {
 
         const randomNumber = Math.floor(Math.random() * 20);
 
-        return message.reply(
-            message.translate(`fun/8ball:RESPONSE_${randomNumber}`)
-        );
+        return message.reply(message.translate(`fun/8ball:RESPONSE_${randomNumber + 1}`));
     }
 }

@@ -1,86 +1,81 @@
-import fetch from 'node-fetch';
-import Command from '../../structures/Command';
-import { TypicalGuildMessage } from '../../types/typicalbot';
+/* eslint-disable @typescript-eslint/naming-convention */
 import { MessageEmbed } from 'discord.js';
-
-const regex = /(.*)/gi;
+import fetch from 'node-fetch';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
 
 export default class extends Command {
     async execute(message: TypicalGuildMessage, parameters: string) {
-        const args = regex.exec(parameters);
-        if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
-        args.shift();
-        const [name] = args;
+        if (!parameters)
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
 
-        const json = await fetch(
-            `https://api.twitch.tv/helix/users?login=${name}`,
-            {
-                method: 'get',
-                headers: { 'Client-ID': this.client.config.apis.twitch }
-            }
-        )
-            .then(res => res.json())
+        const json = await fetch(`https://api.twitch.tv/helix/users?login=${parameters}`, {
+            method: 'get',
+            headers: { 'Client-ID': this.client.config.apis.twitch }
+        })
+            .then((res) => res.json())
             .catch(() => null);
 
-        if (!json)
+        if (!json || !json.data?.length)
             return message.error(message.translate('common:REQUEST_ERROR'));
 
-        const data = json.data[0];
+        const [data] = json.data;
         if (!message.embeddable)
-            return message.reply(
-                [
-                    message.translate('utility/twitch:STATS', {
-                        name: data.display_name
-                    }),
-                    '```',
-                    message.translate('utility/twitch:ID', { id: data.id }),
-                    message.translate('utility/twitch:DISPLAY', {
-                        name: data.display_name
-                    }),
-                    message.translate('utility/twitch: DESC', {
-                        description: data.description
-                    }),
-                    message.translate('utility/twitch:STATUS', {
-                        type: data.broadcaster_type
-                    }),
-                    message.translate('utility/twitch:PROFILE', {
-                        url: data.profile_image_url
-                    }),
-                    message.translate('utility/twitch:VIEWS', {
-                        amount: data.view_count
-                    }),
-                    '```'
-                ].join('\n')
-            );
+            return message.reply([
+                message.translate('utility/twitch:STATS', {
+                    name: data.display_name
+                }),
+                '```',
+                message.translate('utility/twitch:ID', { id: data.id }),
+                message.translate('utility/twitch:DISPLAY', {
+                    name: data.display_name
+                }),
+                message.translate('utility/twitch: DESC', {
+                    description: data.description
+                }),
+                message.translate('utility/twitch:STATUS', {
+                    type: data.broadcaster_type
+                }),
+                message.translate('utility/twitch:PROFILE', {
+                    url: data.profile_image_url
+                }),
+                message.translate('utility/twitch:VIEWS', {
+                    amount: data.view_count
+                }),
+                '```'
+            ].join('\n'));
 
-        return message.send(
-            new MessageEmbed()
-                .setColor(0x00adff)
-                .setTitle('Twitch Statistics')
-                .setDescription(data.description)
-                .addField(message.translate('common:ID_FIELD'), data.id, true)
-                .addField(
-                    message.translate('common:DISPLAYNAME_FIELD'),
-                    data.display_name,
-                    true
-                )
-                .addField(
-                    message.translate('common:STATUS_FIELD'),
-                    data.broadcaster_type,
-                    true
-                )
-                .addField(
-                    message.translate('common:TOTALVIEWS_FIELD'),
-                    data.view_count,
-                    true
-                )
-                .setThumbnail(data.profile_image_url)
-        );
+        const NA = message.translate('common:NA');
+
+        return message.send(new MessageEmbed()
+            .setColor(0x00adff)
+            .setTitle('Twitch Statistics')
+            .setDescription(data.description)
+            .addFields([
+                {
+                    name: message.translate('common:ID_FIELD'),
+                    value: data.id || NA,
+                    inline: true
+                },
+                {
+                    name: message.translate('common:DISPLAYNAME_FIELD'),
+                    value: data.display_name || NA,
+                    inline: true
+                },
+                {
+                    name: message.translate('common:STATUS_FIELD'),
+                    value: data.broadcaster_type || NA,
+                    inline: true
+                },
+                {
+                    name: message.translate('common:TOTALVIEWS'),
+                    value: data.view_count || NA,
+                    inline: true
+                }
+            ])
+            .setThumbnail(data.profile_image_url));
     }
 }

@@ -1,58 +1,46 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage } from '../../types/typicalbot';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
+import { Modes } from '../../lib/utils/constants';
+import { pagify } from '../../lib/utils/util';
 
 const regex = /(\S+)(?:\s+(\d+))?/i;
 
 export default class extends Command {
-    mode = Constants.Modes.LITE;
+    mode = Modes.LITE;
 
     async execute(message: TypicalGuildMessage, parameters: string) {
         const args = regex.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
 
         const [query, number] = args;
         const page = number ? parseInt(number, 10) : 1;
         const lowerQuery = query.toLowerCase();
 
-        const list = message.guild.members.cache.filter(m =>
+        const list = message.guild.members.cache.filter((m) =>
             [
                 m.user.username.toLowerCase(),
                 m.nickname ? m.nickname.toLowerCase() : ''
-            ].includes(lowerQuery)
-        );
+            ].includes(lowerQuery));
 
         if (!list.size)
-            return message.reply(
-                message.translate('utility/search:NONE', { query })
-            );
+            return message.reply(message.translate('utility/search:NONE', { query }), { allowedMentions: { parse: [] }});
 
-        const content = this.client.helpers.pagify.execute(
-            message,
-            list.map(
-                m =>
-                    `${`${m.user.username}${
-                        m.nickname ? ` (${m.nickname})` : ''
-                    }`.padEnd(40)}: ${m.id}`
-            ),
-            page
-        );
+        const content = pagify(message, list.map((m) =>
+            `${`${m.user.username}${
+                m.nickname ? ` (${m.nickname})` : ''
+            }`.padEnd(40)}: ${m.id}`), page);
 
-        return message.send(
-            [
-                message.translate('utility/search:RESULTS', { query }),
-                '',
-                '```autohotkey',
-                content,
-                '```'
-            ].join('\n')
-        );
+        return message.send([
+            message.translate('utility/search:RESULTS', { query }),
+            '',
+            '```autohotkey',
+            content,
+            '```'
+        ].join('\n'), undefined, { allowedMentions: { parse: [] }});
     }
 }

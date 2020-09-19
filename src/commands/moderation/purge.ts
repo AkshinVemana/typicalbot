@@ -1,25 +1,29 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage } from '../../types/typicalbot';
 import { TextChannel } from 'discord.js';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels, ModerationLogTypes } from '../../lib/utils/constants';
 
+// eslint-disable-next-line max-len
 const regex = /(?:(?:<@!?(\d{17,20})>|(\d{17,20})|<@&(\d{17,20})>|<#(\d{17,20})>|(you|me|bots))\s+)?(\d+)(?:\s+((?:.|[\r\n])+))?/i;
 
 export default class extends Command {
     aliases = ['prune'];
-    permission = Constants.PermissionsLevels.SERVER_MODERATOR;
-    mode = Constants.Modes.STRICT;
+    permission = PermissionsLevels.SERVER_MODERATOR;
+    mode = Modes.STRICT;
 
     async execute(message: TypicalGuildMessage, parameters: string) {
         const args = regex.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
+
+        if (!message.guild.me?.permissions.has('MANAGE_MESSAGES', true))
+            return message.error(message.translate('common:INSUFFICIENT_PERMISSIONS', {
+                permission: 'Manage Messages'
+            }));
 
         const [
             userMention,
@@ -34,13 +38,9 @@ export default class extends Command {
         let messageCount = parseInt(amount, 10);
         if (messageCount > 100) messageCount = 100;
         if (messageCount < 2)
-            return message.error(
-                message.translate('moderation/purge:TOO_LITTLE')
-            );
+            return message.error(message.translate('moderation/purge:TOO_LITTLE'));
 
-        let channelToUse = message.guild.channels.cache.get(
-            channelID
-        ) as TextChannel;
+        let channelToUse = message.guild.channels.cache.get(channelID) as TextChannel;
         if (!channelToUse || channelToUse.type !== 'text')
             channelToUse = message.channel;
 
@@ -49,25 +49,20 @@ export default class extends Command {
             before: message.id
         });
 
-        messages = messages.filter(msg => {
-            if (!msg.member) return false;
+        messages = messages.filter((msg) => {
             if ([userMention, userID].includes(msg.author.id)) return true;
-            if (msg.member.roles.cache.has(roleID)) return true;
+            if (msg.member?.roles.cache.has(roleID)) return true;
             if (filter === 'me' && msg.author.id === message.author.id)
                 return true;
             if (filter === 'you' && msg.author.id === this.client.config.id)
                 return true;
             if (filter === 'bots' && msg.author.bot) return true;
-            if (
-                !userMention &&
+            return !userMention &&
                 !userID &&
                 !roleID &&
                 !channelID &&
                 !filter &&
-                !reason
-            )
-                return true;
-            return false;
+                !reason;
         });
 
         const messagesToDelete = messages.array().splice(0, messageCount);
@@ -77,9 +72,7 @@ export default class extends Command {
             .catch(() => null);
 
         if (!purged)
-            return message.error(
-                message.translate('moderation/purge:MISSING_PERMS')
-            );
+            return message.error(message.translate('moderation/purge:MISSING_PERMS'));
 
         if (
             message.guild.settings.logs.moderation &&
@@ -87,24 +80,19 @@ export default class extends Command {
         ) {
             const newCase = await message.guild.buildModerationLog();
             newCase
-                .setAction(Constants.ModerationLogTypes.PURGE)
+                .setAction(ModerationLogTypes.PURGE)
                 .setModerator(message.author)
                 .setChannel(channelToUse);
             if (reason) newCase.setReason(reason);
-            newCase.send();
+            await newCase.send();
         }
 
         if (!purged.size)
-            message.reply(message.translate('moderation/purge:NONE'));
+            await message.reply(message.translate('moderation/purge:NONE'));
         else {
-            const response = await message.reply(
-                message.translate(
-                    purged.size === 1
-                        ? 'moderation/purge:PURGED'
-                        : 'moderation/purge:PURGED_MULTIPLE',
-                    { amount: purged.size }
-                )
-            );
+            const response = await message.reply(message.translate(purged.size === 1
+                ? 'moderation/purge:PURGED'
+                : 'moderation/purge:PURGED_MULTIPLE', { amount: purged.size }));
             response.delete({ timeout: 2500 }).catch(() => null);
         }
 

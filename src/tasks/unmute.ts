@@ -1,15 +1,14 @@
-import Task from '../structures/Task';
-import Constants from '../utility/Constants';
-import { UnmuteTaskData } from '../types/typicalbot';
-import { TypicalGuild } from '../extensions/TypicalGuild';
 import { ClientUser } from 'discord.js';
+import Task from '../lib/structures/Task';
+import { UnmuteTaskData, TypicalGuild } from '../lib/types/typicalbot';
+import Constants from '../lib/utils/constants';
 
 export default class extends Task {
-    async execute(data: UnmuteTaskData) {
-        const guild = this.client.guilds.cache.get(
-            data.guildID
-        ) as TypicalGuild;
+    async execute(data: UnmuteTaskData): Promise<void> {
+        const guild = this.client.guilds.cache.get(data.guildID) as TypicalGuild;
         if (!guild) return;
+
+        if (!guild.me?.permissions.has('MANAGE_ROLES', true)) return;
 
         const member = await guild.members
             .fetch(data.memberID)
@@ -35,8 +34,8 @@ export default class extends Task {
             .setModerator(this.client.user as ClientUser)
             .setUser(member.user)
             .setReason(reason);
-        newCase.send();
+        await newCase.send();
 
-        member.roles.remove(settings.roles.mute, reason);
+        await member.roles.remove(settings.roles.mute, reason);
     }
 }

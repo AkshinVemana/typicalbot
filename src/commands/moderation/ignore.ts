@@ -1,20 +1,18 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage } from '../../types/typicalbot';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels } from '../../lib/utils/constants';
 
 export default class extends Command {
-    permission = Constants.PermissionsLevels.SERVER_ADMINISTRATOR;
-    mode = Constants.Modes.STRICT;
+    permission = PermissionsLevels.SERVER_ADMINISTRATOR;
+    mode = Modes.STRICT;
 
     execute(message: TypicalGuildMessage, parameters: string) {
         const args = /(commands|invites|stars|view)/i.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
 
         const [subcommand] = args;
@@ -25,46 +23,24 @@ export default class extends Command {
                 return this.view(message);
             case 'commands':
                 if (commands.includes(message.channel.id))
-                    return message.error(
-                        message.translate(
-                            'moderation/ignore:ALREADY_IGNORING',
-                            {
-                                type: message
-                                    .translate('common:COMMANDS')
-                                    .toLowerCase()
-                            }
-                        )
-                    );
-                return this.addIgnore(
-                    message,
-                    commands,
-                    'common:COMMANDS',
-                    'commands'
-                );
+                    return message.error(message.translate('moderation/ignore:ALREADY_IGNORING', {
+                        type: message
+                            .translate('common:COMMANDS')
+                            .toLowerCase()
+                    }));
+                return this.addIgnore(message, commands, 'common:COMMANDS', 'commands');
             case 'invites':
                 if (invites.includes(message.channel.id))
-                    return message.error(
-                        message.translate(
-                            'moderation/ignore:ALREADY_IGNORING',
-                            {
-                                type: message
-                                    .translate('common:INVITES')
-                                    .toLowerCase()
-                            }
-                        )
-                    );
+                    return message.error(message.translate('moderation/ignore:ALREADY_IGNORING', {
+                        type: message
+                            .translate('common:INVITES')
+                            .toLowerCase()
+                    }));
 
-                return this.addIgnore(
-                    message,
-                    invites,
-                    'common:INVITES',
-                    'invites'
-                );
+                return this.addIgnore(message, invites, 'common:INVITES', 'invites');
             case 'stars':
                 if (!message.guild.settings.starboard.id)
-                    return message.error(
-                        message.translate('moderation/ignore:STARBOARD')
-                    );
+                    return message.error(message.translate('moderation/ignore:STARBOARD'));
 
                 return this.addIgnore(message, stars, 'common:STARS', 'stars');
         }
@@ -72,18 +48,14 @@ export default class extends Command {
         return null;
     }
 
-    async addIgnore(
-        message: TypicalGuildMessage,
+    async addIgnore(message: TypicalGuildMessage,
         array: string[],
         typeKey: string,
-        key: string
-    ) {
+        key: string) {
         if (array.includes(message.channel.id))
-            return message.error(
-                message.translate('moderation/ignore:ALREADY_IGNORING', {
-                    type: message.translate(typeKey).toLowerCase()
-                })
-            );
+            return message.error(message.translate('moderation/ignore:ALREADY_IGNORING', {
+                type: message.translate(typeKey).toLowerCase()
+            }));
 
         array.push(message.channel.id);
 
@@ -92,10 +64,7 @@ export default class extends Command {
                 ignored: { ...message.guild.settings.ignored, [key]: array }
             })
             .then(() =>
-                message.success(
-                    message.translate('moderation/ignore:ADDED', { type: key })
-                )
-            );
+                message.success(message.translate('moderation/ignore:ADDED', { type: key })));
     }
 
     view(message: TypicalGuildMessage) {
@@ -106,17 +75,17 @@ export default class extends Command {
             message.translate('moderation/ignore:IGNORING', {
                 type: message.translate('common:COMMANDS')
             }),
-            commands.length ? commands.map(id => `<#${id}>`) : NA,
+            commands.length ? commands.map((id) => `<#${id}>`) : NA,
             '',
             message.translate('moderation/ignore:IGNORING', {
                 type: message.translate('common:INVITES')
             }),
-            invites.length ? invites.map(id => `<#${id}>`) : NA,
+            invites.length ? invites.map((id) => `<#${id}>`) : NA,
             '',
             message.translate('moderation/ignore:IGNORING', {
                 type: message.translate('common:STARS')
             }),
-            stars.length ? stars.map(id => `<#${id}>`) : NA
+            stars.length ? stars.map((id) => `<#${id}>`) : NA
         ];
 
         return message.send(response.join('\n'));

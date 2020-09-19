@@ -1,28 +1,29 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage } from '../../types/typicalbot';
-import PermissionLevel from '../../structures/PermissionLevel';
+import Command from '../../lib/structures/Command';
+import PermissionLevel from '../../lib/structures/PermissionLevel';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels, ModerationLogTypes } from '../../lib/utils/constants';
 
 const regex = /(?:<@!?)?(\d{17,20})>?(?:\s+(\d+))?(?:\s+(.+))?/i;
 
 export default class extends Command {
-    permission = Constants.PermissionsLevels.SERVER_MODERATOR;
-    mode = Constants.Modes.STRICT;
+    permission = PermissionsLevels.SERVER_MODERATOR;
+    mode = Modes.STRICT;
 
-    async execute(
-        message: TypicalGuildMessage,
+    async execute(message: TypicalGuildMessage,
         parameters: string,
-        permissionLevel: PermissionLevel
-    ) {
+        permissionLevel: PermissionLevel) {
         const args = regex.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
+
+        if (!message.guild.me?.permissions.has('BAN_MEMBERS', true))
+            return message.error(message.translate('common:INSUFFICIENT_PERMISSIONS', {
+                permission: 'Ban Members'
+            }));
 
         const [userID, days, reason] = args;
 
@@ -34,15 +35,13 @@ export default class extends Command {
 
         if (
             message.member.roles.highest.position <=
-                member.roles.highest.position &&
+            member.roles.highest.position &&
             permissionLevel.level !== 4 &&
             permissionLevel.level < 9
         )
             return message.error(message.translate('moderation/ban:TOO_LOW'));
         if (!member.bannable)
-            return message.error(
-                message.translate('moderation/ban:UNBANNABLEs')
-            );
+            return message.error(message.translate('moderation/ban:UNBANNABLEs'));
 
         this.client.caches.softbans.set(userID, userID);
 
@@ -65,18 +64,16 @@ export default class extends Command {
             if (!message.guild.settings.logs.moderation) {
                 const newCase = await message.guild.buildModerationLog();
                 newCase
-                    .setAction(Constants.ModerationLogTypes.SOFTBAN)
+                    .setAction(ModerationLogTypes.SOFTBAN)
                     .setModerator(message.author)
                     .setUser(member.user);
                 if (reason) newCase.setReason(reason);
-                newCase.send();
+                await newCase.send();
             }
 
-            return message.success(
-                message.translate('moderation/softban:BANNED', {
-                    user: member.user.tag
-                })
-            );
+            return message.success(message.translate('moderation/softban:BANNED', {
+                user: member.user.tag
+            }));
         }, 1000);
     }
 }

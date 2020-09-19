@@ -1,6 +1,6 @@
 import { MessageReaction, TextChannel } from 'discord.js';
-import Event from '../structures/Event';
-import { TypicalGuildMessage } from '../types/typicalbot';
+import Event from '../lib/structures/Event';
+import { TypicalGuildMessage } from '../lib/types/typicalbot';
 
 export default class MessageReactionRemove extends Event {
     async execute(messageReaction: MessageReaction) {
@@ -28,23 +28,17 @@ export default class MessageReactionRemove extends Event {
 
         if (messageReaction.users.cache.get(message.author.id)) count--;
 
-        const channel = message.guild.channels.cache.get(
-            settings.starboard.id
-        ) as TextChannel;
+        const channel = message.guild.channels.cache.get(settings.starboard.id) as TextChannel;
         if (!channel || channel.type !== 'text') return;
 
         const messages = await channel.messages.fetch({ limit: 100 });
-        const boardMsg = messages.find(m => {
+        const boardMsg = messages.find((m) => {
             if (!m.embeds.length) return false;
             const [embed] = m.embeds;
-            if (
-                !embed.footer ||
+            return !(!embed.footer ||
                 !embed.footer.text ||
                 !embed.footer.text.startsWith('⭐') ||
-                !embed.footer.text.endsWith(message.id)
-            )
-                return false;
-            return true;
+                !embed.footer.text.endsWith(message.id));
         });
 
         if (!boardMsg) return;
@@ -57,5 +51,3 @@ export default class MessageReactionRemove extends Event {
         });
     }
 }
-
-module.exports = MessageReactionRemove;

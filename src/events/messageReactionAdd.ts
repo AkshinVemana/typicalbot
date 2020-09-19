@@ -1,6 +1,6 @@
 import { MessageEmbed, MessageReaction, TextChannel } from 'discord.js';
-import Event from '../structures/Event';
-import { TypicalGuildMessage } from '../types/typicalbot';
+import Event from '../lib/structures/Event';
+import { TypicalGuildMessage } from '../lib/types/typicalbot';
 
 export default class MessageReactionAdd extends Event {
     async execute(messageReaction: MessageReaction) {
@@ -31,23 +31,17 @@ export default class MessageReactionAdd extends Event {
 
         if (count < settings.starboard.count) return;
 
-        const channel = message.guild.channels.cache.get(
-            settings.starboard.id
-        ) as TextChannel;
+        const channel = message.guild.channels.cache.get(settings.starboard.id) as TextChannel;
         if (!channel || channel.type !== 'text') return;
 
         const messages = await channel.messages.fetch({ limit: 100 });
-        const boardMsg = messages.find(m => {
+        const boardMsg = messages.find((m) => {
             if (!m.embeds.length) return false;
             const [embed] = m.embeds;
-            if (
-                !embed.footer ||
+            return !(!embed.footer ||
                 !embed.footer.text ||
                 !embed.footer.text.startsWith('⭐') ||
-                !embed.footer.text.endsWith(message.id)
-            )
-                return false;
-            return true;
+                !embed.footer.text.endsWith(message.id));
         });
 
         if (boardMsg) {
@@ -63,28 +57,36 @@ export default class MessageReactionAdd extends Event {
                 ? message.attachments.array()[0].url
                 : null;
 
+        const jump = `https://discordapp.com/channels/${message.guild.id}/${message.channel.id}/${message.id}`;
+
         const embed = new MessageEmbed()
             .setColor(0xffa500)
-            .addField(
-                message.translate('common:AUTHOR'),
-                message.author.toString(),
-                true
-            )
-            .addField(message.channel.toString(), true)
-            .setThumbnail(
-                message.author.displayAvatarURL({ format: 'png', size: 2048 })
-            )
+            .addFields([
+                {
+                    name: message.translate('common:AUTHOR'),
+                    value: message.author.toString(),
+                    inline: true
+                },
+                {
+                    name: 'Original',
+                    value: `[Jump](${jump})`,
+                    inline: true
+                }
+            ])
+            .setThumbnail(message.author.displayAvatarURL({ format: 'png', size: 2048 }))
             .setTimestamp(message.createdAt)
             .setFooter(`⭐ ${count} | ${message.id}`);
 
         if (image) {
             embed.setImage(image);
         } else {
-            embed.addField(
-                message.translate('common:MESSAGE'),
-                message.content,
-                false
-            );
+            embed.addFields([
+                {
+                    name: message.translate('common:MESSAGE'),
+                    value: message.content,
+                    inline: false
+                }
+            ]);
         }
 
         return channel.send({ embed });

@@ -1,24 +1,28 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage, PermissionLevel } from '../../types/typicalbot';
 import { MessageEmbed } from 'discord.js';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage, PermissionLevel } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels, Links } from '../../lib/utils/constants';
 
+// eslint-disable-next-line max-len
 const regex = /(?:<@!?)?(\d{17,20})>?(?:\s+(?:(\d+)d(?:ays?)?)?\s?(?:(\d+)h(?:ours?|rs?)?)?\s?(?:(\d+)m(?:inutes?|in)?)?\s?(?:(\d+)s(?:econds?|ec)?)?)?(?:\s*(\d+))?(?:\s*(.+))?/i;
 
 export default class extends Command {
-    permission = Constants.PermissionsLevels.SERVER_MODERATOR;
-    mode = Constants.Modes.STRICT;
+    permission = PermissionsLevels.SERVER_MODERATOR;
+    mode = Modes.STRICT;
 
-    async execute(
-        message: TypicalGuildMessage,
+    async execute(message: TypicalGuildMessage,
         parameters?: string,
-        permissionLevel?: PermissionLevel
-    ) {
+        permissionLevel?: PermissionLevel) {
         const usageError = message.translate('misc:USAGE_ERROR', {
             name: this.name,
             prefix: this.client.config.prefix
         });
         if (!parameters || !permissionLevel) return message.error(usageError);
+
+        if (!message.guild.me?.permissions.has('BAN_MEMBERS', true))
+            return message.error(message.translate('common:INSUFFICIENT_PERMISSIONS', {
+                permission: 'Ban Members'
+            }));
 
         const args = regex.exec(parameters);
         if (!args) return message.error(usageError);
@@ -46,16 +50,14 @@ export default class extends Command {
         if (
             member &&
             message.member.roles.highest.position <=
-                member.roles.highest.position &&
+            member.roles.highest.position &&
             permissionLevel.level !== 4 &&
             permissionLevel.level < 9
         )
             return message.error(message.translate('moderation/ban:TOO_LOW'));
 
         if (member && !member.bannable)
-            return message.error(
-                message.translate('moderation/ban:UNBANNABLE')
-            );
+            return message.error(message.translate('moderation/ban:UNBANNABLE'));
 
         const log = {
             expiration: time,
@@ -67,19 +69,24 @@ export default class extends Command {
 
         const embed = new MessageEmbed()
             .setColor(0xff0000)
-            .setFooter('TypicalBot', Constants.Links.ICON)
+            .setFooter('TypicalBot', Links.ICON)
             .setTitle(message.translate('common:ALERT_SYSTEM'))
-            .setDescription(
-                message.translate('moderation/ban:BANNED', {
-                    name: message.guild.name
-                })
-            )
-            .addField(
-                message.translate('common:MODERATOR_FIELD'),
-                message.author.tag
-            );
+            .setDescription(message.translate('moderation/ban:BANNED', {
+                name: message.guild.name
+            }))
+            .addFields([
+                {
+                    name: message.translate('common:MODERATOR_FIELD'),
+                    value: message.author.tag
+                }
+            ]);
         if (reason)
-            embed.addField(message.translate('common:REASON_FIELD'), reason);
+            embed.addFields([
+                {
+                    name: message.translate('common:REASON_FIELD'),
+                    value: reason
+                }
+            ]);
 
         await user.send(embed).catch(() => null);
 
@@ -91,11 +98,9 @@ export default class extends Command {
                     reason: reason || message.translate('common:NO_REASON')
                 })
             })
-            .catch(err => {
+            .catch((err) => {
                 if (err === "Error: Couldn't resolve the user ID to ban.")
-                    return message.error(
-                        message.translate('common:USER_NOT_FOUND')
-                    );
+                    return message.error(message.translate('common:USER_NOT_FOUND'));
 
                 this.client.caches.bans.delete(user.id);
 
@@ -103,13 +108,11 @@ export default class extends Command {
             });
 
         if (time)
-            this.client.handlers.tasks.create('unban', Date.now() + time, {
+            await this.client.handlers.tasks.create('unban', Date.now() + time, {
                 guildID: message.guild.id,
                 userID: user.id
             });
 
-        return message.success(
-            message.translate('moderation/ban:BAN_SUCCESS', { user: user.tag })
-        );
+        return message.success(message.translate('moderation/ban:BAN_SUCCESS', { user: user.tag }));
     }
 }

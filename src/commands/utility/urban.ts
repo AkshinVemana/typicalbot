@@ -1,7 +1,7 @@
-import fetch from 'node-fetch';
-import Command from '../../structures/Command';
-import { TypicalGuildMessage } from '../../types/typicalbot';
 import { MessageEmbed } from 'discord.js';
+import fetch from 'node-fetch';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
 
 const regex = /(.*)/gi;
 
@@ -12,70 +12,58 @@ export default class extends Command {
 
         const args = regex.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
         const [query] = args;
 
-        const data = await fetch(
-            `http://api.urbandictionary.com/v0/define?term=${query}`
-        )
-            .then(res => res.json())
+        const data = await fetch(`http://api.urbandictionary.com/v0/define?term=${query}`)
+            .then((res) => res.json())
             .catch(() => null);
         if (!data)
             return message.error(message.translate('common:REQUEST_ERROR'));
 
         const [resp] = data.list;
         if (!resp)
-            return message.error(
-                message.translate('utility/urban:NONE', { query })
-            );
+            return message.error(message.translate('utility/urban:NONE', { query }));
 
         if (!message.embeddable)
-            return message.reply(
-                message.translate('utility/urban:TEXT', {
-                    query,
-                    definition: resp.definition
-                })
-            );
+            return message.reply(message.translate('utility/urban:TEXT', {
+                query,
+                definition: resp.definition
+            }));
 
-        const rating = Math.round(
-            (resp.thumbs_up / (resp.thumbs_up + resp.thumbs_down)) * 100
-        );
+        const rating = Math.round((resp.thumbs_up / (resp.thumbs_up + resp.thumbs_down)) * 100);
 
-        return message.send(
-            new MessageEmbed()
-                .setColor(0x00adff)
-                .setTitle(query)
-                .setURL(resp.permalink)
-                .addField(
-                    message.translate('utility/urban:AMOUNT', {
+        return message.send(new MessageEmbed()
+            .setColor(0x00adff)
+            .setTitle(query)
+            .setURL(resp.permalink)
+            .addFields([
+                {
+                    name: message.translate('utility/urban:AMOUNT', {
                         amount: data.length
                     }),
-                    `\n\u200B    ${resp.definition}`
-                )
-                .addField(
-                    message.translate('utility/urban:RATING'),
-                    message.translate('utility/urban:RATING_VALUE', {
+                    value: `\n\u200B    ${resp.definition}`
+                },
+                {
+                    name: message.translate('utility/urban:RATING'),
+                    value: message.translate('utility/urban:RATING_VALUE', {
                         up: resp.thumbs_up,
                         down: resp.thumbs_down,
                         rating: !isNaN(rating)
-                            ? message.translate(
-                                  'utility/urban:RATING_PERCENT',
-                                  {
-                                      amount: rating,
-                                      total: resp.thumbs_up + resp.thumbs_down
-                                  }
-                              )
+                            ? message.translate('utility/urban:RATING_PERCENT', {
+                                amount: rating,
+                                total:
+                                              resp.thumbs_up + resp.thumbs_down
+                            })
                             : ''
                     })
-                )
-                .setThumbnail('http://i.imgur.com/CcIZZsa.png')
-                .setFooter(message.translate('utility/urban:DICTIONARY'))
-        );
+                }
+            ])
+            .setThumbnail('http://i.imgur.com/CcIZZsa.png')
+            .setFooter(message.translate('utility/urban:DICTIONARY')));
     }
 }

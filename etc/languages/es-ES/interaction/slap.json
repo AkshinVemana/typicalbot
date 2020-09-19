@@ -1,0 +1,7 @@
+{
+    "DESCRIPTION": "Abofetea a otro usuario del servidor.",
+    "USAGE": "slap [@usuario]",
+    "SELF": ", deja de golpearte! : dizzy_face :: wave:",
+    "RESPONSE": "¡acabo de abofetear a {{usuario}}! : dizzy_face :: wave:",
+    "RESPONSE_HURT": "¡acabo de abofetear a {{usuario}}! : dizzy_face :: wave: ¡Oh, dang! ¡Eso debe haber dolido"
+}

@@ -1,28 +1,30 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage, PermissionLevel } from '../../types/typicalbot';
 import { PermissionOverwrites, MessageEmbed } from 'discord.js';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage, PermissionLevel } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels, ModerationLogTypes, Links } from '../../lib/utils/constants';
 
+// eslint-disable-next-line max-len
 const regex = /(?:(?:<@!?)?(\d{17,20})>?(?:\s+(?:(\d+)d(?:ays?)?)?\s?(?:(\d+)h(?:ours?|rs?)?)?\s?(?:(\d+)m(?:inutes?|in)?)?\s?(?:(\d+)s(?:econds?|ec)?)?)?(?:\s*(.+))?|(deny)\s+(?:(here)|(?:(?:<#)?(\d{17,20})>?)))/i;
 
 export default class extends Command {
-    permission = Constants.PermissionsLevels.SERVER_MODERATOR;
-    mode = Constants.Modes.STRICT;
+    permission = PermissionsLevels.SERVER_MODERATOR;
+    mode = Modes.STRICT;
 
-    async execute(
-        message: TypicalGuildMessage,
+    async execute(message: TypicalGuildMessage,
         parameters: string,
-        permissionLevel: PermissionLevel
-    ) {
+        permissionLevel: PermissionLevel) {
         const args = regex.exec(parameters);
         if (!args)
-            return message.error(
-                message.translate('misc:USAGE_ERROR', {
-                    name: this.name,
-                    prefix: this.client.config.prefix
-                })
-            );
+            return message.error(message.translate('misc:USAGE_ERROR', {
+                name: this.name,
+                prefix: this.client.config.prefix
+            }));
         args.shift();
+
+        if (!message.guild.me?.permissions.has('MANAGE_ROLES', true))
+            return message.error(message.translate('common:INSUFFICIENT_PERMISSIONS', {
+                permission: 'Manage Roles'
+            }));
 
         const [
             userID,
@@ -38,9 +40,7 @@ export default class extends Command {
 
         if (!message.guild.settings.roles.mute)
             return message.error(message.translate('moderation/mute:NO_ROLE'));
-        const role = message.guild.roles.cache.get(
-            message.guild.settings.roles.mute
-        );
+        const role = message.guild.roles.cache.get(message.guild.settings.roles.mute);
         if (!role)
             return message.error(message.translate('moderation/mute:NO_ROLE'));
 
@@ -49,42 +49,28 @@ export default class extends Command {
                 ? message.channel
                 : message.guild.channels.cache.get(channelID);
             if (!channel)
-                return message.error(
-                    message.translate('moderation/mute:INVALID_CHANNEL')
-                );
+                return message.error(message.translate('moderation/mute:INVALID_CHANNEL'));
 
-            const permissions = channel.permissionsFor(
-                message.guild.me || this.client.config.id
-            );
+            const permissions = channel.permissionsFor(message.guild.me || this.client.config.id);
 
             if (permissions && !permissions.has('MANAGE_ROLES'))
-                return message.error(
-                    message.translate('moderation/mute:MISSING_PERMS')
-                );
+                return message.error(message.translate('moderation/mute:MISSING_PERMS'));
 
             const currentOverwrites = channel.permissionOverwrites;
-            currentOverwrites.set(
-                role.id,
-                new PermissionOverwrites(channel, {
-                    id: role.id,
-                    deny: ['SEND_MESSAGES'],
-                    allow: [],
-                    type: 'role'
-                })
-            );
+            currentOverwrites.set(role.id, new PermissionOverwrites(channel, {
+                id: role.id,
+                deny: ['SEND_MESSAGES'],
+                allow: [],
+                type: 'role'
+            }));
 
             const edited = await channel
-                .overwritePermissions({
-                    permissionOverwrites: currentOverwrites,
-                    reason: message.translate('moderation/mute:DENYING')
-                })
+                .overwritePermissions(currentOverwrites, message.translate('moderation/mute:DENYING'))
                 .catch(() => null);
 
             return edited
                 ? message.success(message.translate('moderation/mute:DENYING'))
-                : message.error(
-                      message.translate('moderation/mute:DENY_ERROR')
-                  );
+                : message.error(message.translate('moderation/mute:DENY_ERROR'));
         }
 
         // Mute a member
@@ -105,39 +91,40 @@ export default class extends Command {
             return message.error(message.translate('common:USER_NOT_FOUND'));
 
         if (member.roles.cache.has(message.guild.settings.roles.mute))
-            return message.error(
-                message.translate('moderation/mute:ALREADY_MUTED')
-            );
+            return message.error(message.translate('moderation/mute:ALREADY_MUTED'));
 
         if (
             message.member.roles.highest.position <=
-                member.roles.highest.position &&
+            member.roles.highest.position &&
             permissionLevel.level !== 4 &&
             permissionLevel.level < 9
         )
             return message.error(message.translate('moderation/mute:TOO_LOW'));
 
         if (!role.editable)
-            return message.error(
-                message.translate('moderation/mute:UNEDITABLE')
-            );
+            return message.error(message.translate('moderation/mute:UNEDITABLE'));
 
         const embed = new MessageEmbed()
-            .setColor(Constants.ModerationLogTypes.MUTE.hex)
-            .setFooter('TypicalBot', Constants.Links.ICON)
+            .setColor(ModerationLogTypes.MUTE.hex)
+            .setFooter('TypicalBot', Links.ICON)
             .setTitle(message.translate('common:ALERT_SYSTEM'))
-            .setDescription(
-                message.translate('moderation/mute:MUTED', {
-                    name: message.guild.name
-                })
-            )
-            .addField(
-                message.translate('common:MODERATOR_FIELD'),
-                message.author.tag
-            );
+            .setDescription(message.translate('moderation/mute:MUTED', {
+                name: message.guild.name
+            }))
+            .addFields([
+                {
+                    name: message.translate('common:MODERATOR_FIELD'),
+                    value: message.author.tag
+                }
+            ]);
         if (reason)
-            embed.addField(message.translate('common:REASON_FIELD'), reason);
-        member.send().catch(() => null);
+            embed.addFields([
+                {
+                    name: message.translate('common:REASON_FIELD'),
+                    value: reason
+                }
+            ]);
+        member.send(embed).catch(() => null);
 
         const muted = await member.roles.add(role).catch(() => null);
         if (!muted)
@@ -147,23 +134,21 @@ export default class extends Command {
             const newCase = await message.guild.buildModerationLog();
             newCase
                 .setExpiration(time)
-                .setAction(Constants.ModerationLogTypes.MUTE)
+                .setAction(ModerationLogTypes.MUTE)
                 .setModerator(message.author)
                 .setUser(member.user);
             if (reason) newCase.setReason(reason);
-            newCase.send();
+            await newCase.send();
         }
 
         if (time)
-            this.client.handlers.tasks.create('unmute', Date.now() + time, {
+            await this.client.handlers.tasks.create('unmute', Date.now() + time, {
                 guildID: message.guild.id,
                 memberID: member.id
             });
 
-        return message.success(
-            message.translate('moderation/mute:SUCCESS', {
-                user: message.author.tag
-            })
-        );
+        return message.success(message.translate('moderation/mute:SUCCESS', {
+            user: member.user.tag
+        }));
     }
 }

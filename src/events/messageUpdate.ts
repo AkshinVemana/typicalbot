@@ -1,15 +1,13 @@
 import { inspect } from 'util';
-import Constants from '../utility/Constants';
-import Event from '../structures/Event';
-import { TypicalGuildMessage } from '../types/typicalbot';
+import Event from '../lib/structures/Event';
+import { TypicalGuildMessage } from '../lib/types/typicalbot';
+import { PermissionsLevels } from '../lib/utils/constants';
 
 const regex = /(https:\/\/)?(www\.)?(?:discord\.(?:gg|io|me|li)|discordapp\.com\/invite)\/([a-z0-9-.]+)?/i;
 
 export default class MessageUpdate extends Event {
-    async execute(
-        _oldMessage: TypicalGuildMessage,
-        message: TypicalGuildMessage
-    ) {
+    async execute(_oldMessage: TypicalGuildMessage,
+        message: TypicalGuildMessage) {
         if (
             message.partial ||
             message.channel.type !== 'text' ||
@@ -21,17 +19,14 @@ export default class MessageUpdate extends Event {
 
         const settings = (message.guild.settings = await message.guild.fetchSettings());
 
-        const userPermissions = await this.client.handlers.permissions.fetch(
-            message.guild,
-            message.author.id
-        );
+        const userPermissions = await this.client.handlers.permissions.fetch(message.guild, message.author.id);
 
         if (userPermissions.level >= 2) return;
         if (settings.ignored.invites.includes(message.channel.id)) return;
 
         if (
             userPermissions.level <
-                Constants.PermissionsLevels.SERVER_MODERATOR &&
+                PermissionsLevels.SERVER_MODERATOR &&
             !settings.ignored.invites.includes(message.channel.id)
         ) {
             this.inviteCheck(message);

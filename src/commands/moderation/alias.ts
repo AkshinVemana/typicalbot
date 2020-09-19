@@ -1,14 +1,13 @@
-import Command from '../../structures/Command';
-import Constants from '../../utility/Constants';
-import { TypicalGuildMessage } from '../../types/typicalbot';
+import Command from '../../lib/structures/Command';
+import { TypicalGuildMessage } from '../../lib/types/typicalbot';
+import { Modes, PermissionsLevels } from '../../lib/utils/constants';
 
 const regex = /(list|add|remove|clear)(?:\s+([A-Za-z]+)(?:\s+([A-Za-z]+))?)?/i;
 
 export default class extends Command {
     aliases = ['aliases'];
-    permission = Constants.PermissionsLevels.SERVER_ADMINISTRATOR;
-    mode = Constants.Modes.STRICT;
-    access = Constants.AccessLevels.DONOR;
+    permission = PermissionsLevels.SERVER_ADMINISTRATOR;
+    mode = Modes.STRICT;
 
     async execute(message: TypicalGuildMessage, parameters?: string) {
         const usageError = message.translate('misc:USAGE_ERROR', {
@@ -36,45 +35,36 @@ export default class extends Command {
         }
     }
 
-    list(message: TypicalGuildMessage) {
+    async list(message: TypicalGuildMessage) {
         const NONE = message.translate('common:NONE');
 
-        message.reply([
+        await message.reply([
             message.translate('moderation/alias:CURRENT'),
             message.guild.settings.aliases.length
                 ? message.guild.settings.aliases
-                      .map(a => `${a.alias} -> ${a.command}`)
-                      .join('\n')
+                    .map((a) => `${a.alias} -> ${a.command}`)
+                    .join('\n')
                 : NONE
         ]);
     }
 
-    async add(
-        message: TypicalGuildMessage,
+    async add(message: TypicalGuildMessage,
         command: string,
         alias: string,
-        usageError: string
-    ) {
+        usageError: string) {
         if (!command || !alias) return message.error(usageError);
 
         const cmd = this.client.commands.fetch(command, message.guild.settings);
         if (!cmd)
-            return message.error(
-                message.translate('moderation/alias:INVALID_COMMAND')
-            );
+            return message.error(message.translate('moderation/alias:INVALID_COMMAND'));
 
         const aliasList = message.guild.settings.aliases;
-        const aliasExists = aliasList.find(a => a.alias === alias);
+        const aliasExists = aliasList.find((a) => a.alias === alias);
         if (aliasExists) {
-            const aliasCommand = this.client.commands.fetch(
-                aliasExists.command,
-                message.guild.settings
-            );
-            return message.error(
-                message.translate('moderation/alias:ALIAS_EXISTS', {
-                    name: aliasCommand ? aliasCommand.name : null
-                })
-            );
+            const aliasCommand = this.client.commands.fetch(aliasExists.command, message.guild.settings);
+            return message.error(message.translate('moderation/alias:ALIAS_EXISTS', {
+                name: aliasCommand ? aliasCommand.name : null
+            }));
         }
 
         if (alias.length > 10)
@@ -87,27 +77,21 @@ export default class extends Command {
             .catch(() => null);
 
         if (!updated)
-            return message.error(
-                message.translate('moderation/alias:ADD_ERROR')
-            );
+            return message.error(message.translate('moderation/alias:ADD_ERROR'));
 
         return message.success(message.translate('moderation/alias:ADDED'));
     }
 
-    async remove(
-        message: TypicalGuildMessage,
+    async remove(message: TypicalGuildMessage,
         command: string,
-        usageError: string
-    ) {
+        usageError: string) {
         if (!command) return message.error(usageError);
 
         const aliasList = message.guild.settings.aliases;
-        const aliasIndex = aliasList.findIndex(a => a.alias === command);
+        const aliasIndex = aliasList.findIndex((a) => a.alias === command);
 
         if (aliasIndex < 0)
-            return message.error(
-                message.translate('moderation/alias:INVALID_ALIAS')
-            );
+            return message.error(message.translate('moderation/alias:INVALID_ALIAS'));
 
         aliasList.splice(aliasIndex, 1);
 
@@ -115,9 +99,7 @@ export default class extends Command {
             .update(message.guild.id, { aliases: aliasList })
             .catch(() => null);
         if (!updated)
-            return message.error(
-                message.translate('moderation/alias:REMOVE_ERROR')
-            );
+            return message.error(message.translate('moderation/alias:REMOVE_ERROR'));
 
         return message.success(message.translate('moderation/alias:REMOVED'));
     }
@@ -126,10 +108,8 @@ export default class extends Command {
         this.client.settings
             .update(message.guild.id, { aliases: [] })
             .then(() =>
-                message.success(message.translate('moderation/alias:CLEARED'))
-            )
+                message.success(message.translate('moderation/alias:CLEARED')))
             .catch(() =>
-                message.error(message.translate('moderation/alias:CLEAR_ERROR'))
-            );
+                message.error(message.translate('moderation/alias:CLEAR_ERROR')));
     }
 }

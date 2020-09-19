@@ -1,0 +1,7 @@
+{
+    "DESCRIPTION": "Golpea a otro usuario del servidor.",
+    "USAGE": "punch [@usuario]",
+    "SELF": " deja de golpearte! :puñetazo:",
+    "RESPONSE": "acaba de golpear {{usuario}}! :puñetazo:",
+    "RESPONSE_JAW": "acaba de golpear {{usuario}}! : golpe: ¡Oh, dang! Derecho a la mandíbula! ¡Eso debe haber dolido"
+}
